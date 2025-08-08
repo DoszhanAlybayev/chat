@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/message.dart';
+import '../models/attachment.dart';
 import '../repositories/file_repository.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
@@ -17,30 +18,96 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<OpenFilePicker>(_onOpenFilePicker);
     on<ToggleAttachmentMenu>(_onToggleAttachmentMenu);
     on<AddAttachment>(_onAddAttachment);
+    on<AddPendingAttachment>(_onAddPendingAttachment);
+    on<RemovePendingAttachment>(_onRemovePendingAttachment);
+    on<ClearPendingAttachments>(_onClearPendingAttachments);
+    on<ViewAttachment>(_onViewAttachment);
+    on<DownloadFile>(_onDownloadFile);
 
-    // Инициализируем с пустым списком сообщений
-    emit(const ChatLoaded(messages: []));
+    // Инициализируем с тестовыми сообщениями для демонстрации времени и дат
+    final now = DateTime.now();
+    final testMessages = [
+      Message(
+        id: '1',
+        text: 'Привет! Как дела?',
+        isMe: false,
+        timestamp: now.subtract(Duration(days: 2, hours: 10)),
+      ),
+      Message(
+        id: '2',
+        text: 'Привет! Отлично, спасибо!',
+        isMe: true,
+        timestamp: now.subtract(Duration(days: 2, hours: 9, minutes: 45)),
+      ),
+      Message(
+        id: '3',
+        text: 'Что планируешь на выходные?',
+        isMe: false,
+        timestamp: now.subtract(Duration(days: 1, hours: 14)),
+      ),
+      Message(
+        id: '4',
+        text: 'Думаю съездить на дачу 🌲',
+        isMe: true,
+        timestamp: now.subtract(Duration(days: 1, hours: 13, minutes: 30)),
+      ),
+      Message(
+        id: '5',
+        text: 'Отличная идея!',
+        isMe: false,
+        timestamp: now.subtract(Duration(hours: 2)),
+      ),
+    ];
+    
+    emit(ChatLoaded(messages: testMessages));
   }
 
   void _onSendMessage(SendMessage event, Emitter<ChatState> emit) {
     final currentState = state;
     if (currentState is ChatLoaded) {
-      if (event.text.trim().isEmpty) return;
+      // Проверяем, есть ли текст или вложения
+      if (event.text.trim().isEmpty && currentState.pendingAttachments.isEmpty) return;
 
-      final newMessage = Message(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        text: event.text.trim(),
-        isMe: true,
-        timestamp: DateTime.now(),
-      );
+      List<Message> newMessages = [];
+
+      // Если есть текст, создаем текстовое сообщение
+      if (event.text.trim().isNotEmpty) {
+        final textMessage = Message(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          text: event.text.trim(),
+          isMe: true,
+          timestamp: DateTime.now(),
+        );
+        newMessages.add(textMessage);
+      }
+
+      // Создаем сообщения для каждого вложения
+      for (int i = 0; i < currentState.pendingAttachments.length; i++) {
+        final attachment = currentState.pendingAttachments[i];
+        final attachmentMessage = Message(
+          id: '${DateTime.now().millisecondsSinceEpoch}_${attachment.id}_$i',
+          text: '', // Без текста для вложений
+          isMe: true,
+          timestamp: DateTime.now().add(Duration(milliseconds: i)), // Чуть разное время
+          attachmentType: attachment.type,
+          attachmentPath: attachment.path,
+        );
+        newMessages.add(attachmentMessage);
+      }
 
       final updatedMessages = List<Message>.from(currentState.messages)
-        ..add(newMessage);
+        ..addAll(newMessages);
 
-      emit(currentState.copyWith(messages: updatedMessages));
+      // Очищаем pending attachments и обновляем сообщения
+      emit(currentState.copyWith(
+        messages: updatedMessages,
+        pendingAttachments: [],
+      ));
 
-      // Симуляция ответа
-      _simulateResponse(emit, currentState);
+      // Симуляция ответа только для текстовых сообщений
+      if (event.text.trim().isNotEmpty) {
+        _simulateResponse(emit);
+      }
     }
   }
 
@@ -62,10 +129,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       try {
         final image = await _fileRepository.pickImageFromCamera();
         if (image != null) {
-          add(AddAttachment(
-            text: '📷 Фотография отправлена',
-            attachmentType: 'image',
-            attachmentPath: image.path,
+          add(AddPendingAttachment(
+            type: 'image',
+            path: image.path,
           ));
         }
       } catch (e) {
@@ -85,10 +151,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       try {
         final image = await _fileRepository.pickImageFromGallery();
         if (image != null) {
-          add(AddAttachment(
-            text: '🖼️ Изображение из галереи',
-            attachmentType: 'image',
-            attachmentPath: image.path,
+          add(AddPendingAttachment(
+            type: 'image',
+            path: image.path,
           ));
         }
       } catch (e) {
@@ -108,10 +173,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       try {
         final file = await _fileRepository.pickFile();
         if (file != null) {
-          add(AddAttachment(
-            text: '📎 Файл: ${file.name}',
-            attachmentType: 'file',
-            attachmentPath: file.path,
+          add(AddPendingAttachment(
+            type: 'file',
+            path: file.path!,
+            name: file.name,
           ));
         }
       } catch (e) {
@@ -141,20 +206,77 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
   }
 
-  void _simulateResponse(Emitter<ChatState> emit, ChatLoaded currentState) {
+  void _onAddPendingAttachment(AddPendingAttachment event, Emitter<ChatState> emit) {
+    final currentState = state;
+    if (currentState is ChatLoaded) {
+      final newAttachment = Attachment(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        type: event.type,
+        path: event.path,
+        name: event.name,
+      );
+
+      final updatedAttachments = List<Attachment>.from(currentState.pendingAttachments)
+        ..add(newAttachment);
+
+      emit(currentState.copyWith(pendingAttachments: updatedAttachments));
+    }
+  }
+
+  void _onRemovePendingAttachment(RemovePendingAttachment event, Emitter<ChatState> emit) {
+    final currentState = state;
+    if (currentState is ChatLoaded) {
+      final updatedAttachments = currentState.pendingAttachments
+          .where((attachment) => attachment.id != event.attachmentId)
+          .toList();
+
+      emit(currentState.copyWith(pendingAttachments: updatedAttachments));
+    }
+  }
+
+  void _onClearPendingAttachments(ClearPendingAttachments event, Emitter<ChatState> emit) {
+    final currentState = state;
+    if (currentState is ChatLoaded) {
+      emit(currentState.copyWith(pendingAttachments: []));
+    }
+  }
+
+  void _onViewAttachment(ViewAttachment event, Emitter<ChatState> emit) {
+    // Этот обработчик может быть использован для логирования или статистики
+    // Основная логика открытия вложений будет в UI
+  }
+
+  void _onDownloadFile(DownloadFile event, Emitter<ChatState> emit) async {
+    final currentState = state;
+    if (currentState is ChatLoaded) {
+      try {
+        // Здесь можно добавить логику скачивания файла
+        // Пока что просто показываем уведомление через SnackBar в UI
+      } catch (e) {
+        emit(currentState.copyWith(
+          errorMessage: 'Ошибка при сохранении файла',
+        ));
+      }
+    }
+  }
+
+  void _simulateResponse(Emitter<ChatState> emit) {
     Future.delayed(const Duration(seconds: 1), () {
       if (!isClosed) {
-        final responseMessage = Message(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          text: 'Понял, обрабатываю ваш запрос...',
-          isMe: false,
-          timestamp: DateTime.now(),
-        );
+        final currentState = state;
+        if (currentState is ChatLoaded) {
+          final responseMessage = Message(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            text: 'Понял, обрабатываю ваш запрос...',
+            isMe: false,
+            timestamp: DateTime.now(),
+          );
 
-        final updatedMessages = List<Message>.from(currentState.messages)
-          ..add(responseMessage);
+          final updatedMessages = List<Message>.from(currentState.messages)
+            ..add(responseMessage);
 
-        emit(currentState.copyWith(messages: updatedMessages));
+          emit(currentState.copyWith(messages: updatedMessages));
+        }
       }
     });
   }
