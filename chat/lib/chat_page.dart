@@ -21,6 +21,7 @@ class _ChatPageState extends State<ChatPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   final TextEditingController _messageController = TextEditingController();
+  bool _hasText = false;
 
   @override
   void initState() {
@@ -30,10 +31,23 @@ class _ChatPageState extends State<ChatPage>
       vsync: this,
       duration: Duration(milliseconds: 300),
     );
+    
+    // Слушаем изменения в поле ввода
+    _messageController.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    final hasText = _messageController.text.trim().isNotEmpty;
+    if (hasText != _hasText) {
+      setState(() {
+        _hasText = hasText;
+      });
+    }
   }
 
   @override
   void dispose() {
+    _messageController.removeListener(_onTextChanged);
     _animationController.dispose();
     _messageController.dispose();
     super.dispose();
@@ -197,16 +211,7 @@ class _ChatPageState extends State<ChatPage>
         mainAxisAlignment: message.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!message.isMe) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.grey[300],
-              child: Icon(Icons.person, size: 18, color: Colors.grey[600]),
-            ),
-            SizedBox(width: 8),
-          ],
-          
-          // Основное содержимое сообщения
+          // Основное содержимое сообщения без аватарок
           isAttachmentOnly
             ? // Для вложений без текста используем компактный режим
               Flexible(
@@ -280,15 +285,6 @@ class _ChatPageState extends State<ChatPage>
                   ),
                 ),
               ),
-          
-          if (message.isMe) ...[
-            SizedBox(width: 8),
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Color(0xFF007AFF),
-              child: Icon(Icons.person, size: 18, color: Colors.white),
-            ),
-          ],
         ],
       ),
     );
@@ -582,32 +578,68 @@ class _ChatPageState extends State<ChatPage>
                   SizedBox(width: 8.0),
                   Expanded(
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      constraints: BoxConstraints(
+                        minHeight: 40,
+                        maxHeight: 120, // Максимальная высота как в Telegram
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(25.0),
                       ),
                       child: TextField(
                         controller: _messageController,
+                        maxLines: null, // Разрешаем неограниченное количество строк
+                        minLines: 1,    // Минимум 1 строка
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline, // Enter создает новую строку
                         decoration: InputDecoration(
                           hintText: 'Написать сообщение...',
                           hintStyle: TextStyle(color: Colors.grey[600]),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                          isDense: true,
+                        ),
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.2, // Междустрочный интервал
                         ),
                         onSubmitted: (text) {
-                          _sendMessage();
+                          // В многострочном режиме Enter не отправляет сообщение
+                          // Но мы можем добавить поддержку Ctrl+Enter
+                        },
+                        onChanged: (text) {
+                          // Дополнительная проверка на изменение текста
+                          _onTextChanged();
                         },
                       ),
                     ),
                   ),
                   SizedBox(width: 8.0),
-                  IconButton(
-                    onPressed: _sendMessage,
-                    icon: Transform.rotate(
-                      angle: -45 * 3.14159265359 / 180,
-                      child: Icon(Icons.send, color: Color(0xFF007AFF), size: 24),
-                    ),
+                  BlocBuilder<ChatBloc, ChatState>(
+                    builder: (context, state) {
+                      final hasAttachments = state is ChatLoaded && state.pendingAttachments.isNotEmpty;
+                      final canSend = _hasText || hasAttachments;
+                      
+                      return AnimatedContainer(
+                        duration: Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: canSend ? Color(0xFF007AFF) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          onPressed: canSend ? _sendMessage : null,
+                          icon: Transform.rotate(
+                            angle: -45 * 3.14159265359 / 180,
+                            child: Icon(
+                              Icons.send, 
+                              color: canSend ? Colors.white : Color(0xFF007AFF), 
+                              size: 22,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -692,6 +724,7 @@ class _ChatPageState extends State<ChatPage>
       if (_messageController.text.trim().isNotEmpty || currentState.pendingAttachments.isNotEmpty) {
         context.read<ChatBloc>().add(SendMessage(_messageController.text));
         _messageController.clear();
+        // _hasText обновится автоматически через _onTextChanged listener
       }
     }
   }
