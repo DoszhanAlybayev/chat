@@ -102,3 +102,7 @@ class DownloadFile extends ChatEvent {
   @override
   List<Object?> get props => [messageId, attachmentPath];
 }
+
+class ClearError extends ChatEvent {
+  const ClearError();
+}

@@ -23,6 +23,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ClearPendingAttachments>(_onClearPendingAttachments);
     on<ViewAttachment>(_onViewAttachment);
     on<DownloadFile>(_onDownloadFile);
+    on<ClearError>(_onClearError);
 
     // Инициализируем с тестовыми сообщениями для демонстрации времени и дат
     final now = DateTime.now();
@@ -65,48 +66,55 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   void _onSendMessage(SendMessage event, Emitter<ChatState> emit) {
     final currentState = state;
     if (currentState is ChatLoaded) {
-      // Проверяем, есть ли текст или вложения
-      if (event.text.trim().isEmpty && currentState.pendingAttachments.isEmpty) return;
+      try {
+        // Проверяем, есть ли текст или вложения
+        if (event.text.trim().isEmpty && currentState.pendingAttachments.isEmpty) return;
 
-      List<Message> newMessages = [];
+        List<Message> newMessages = [];
 
-      // Если есть текст, создаем текстовое сообщение
-      if (event.text.trim().isNotEmpty) {
-        final textMessage = Message(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          text: event.text.trim(),
-          isMe: true,
-          timestamp: DateTime.now(),
-        );
-        newMessages.add(textMessage);
-      }
+        // Если есть текст, создаем текстовое сообщение
+        if (event.text.trim().isNotEmpty) {
+          final textMessage = Message(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            text: event.text.trim(),
+            isMe: true,
+            timestamp: DateTime.now(),
+          );
+          newMessages.add(textMessage);
+        }
 
-      // Создаем сообщения для каждого вложения
-      for (int i = 0; i < currentState.pendingAttachments.length; i++) {
-        final attachment = currentState.pendingAttachments[i];
-        final attachmentMessage = Message(
-          id: '${DateTime.now().millisecondsSinceEpoch}_${attachment.id}_$i',
-          text: '', // Без текста для вложений
-          isMe: true,
-          timestamp: DateTime.now().add(Duration(milliseconds: i)), // Чуть разное время
-          attachmentType: attachment.type,
-          attachmentPath: attachment.path,
-        );
-        newMessages.add(attachmentMessage);
-      }
+        // Создаем сообщения для каждого вложения
+        for (int i = 0; i < currentState.pendingAttachments.length; i++) {
+          final attachment = currentState.pendingAttachments[i];
+          final attachmentMessage = Message(
+            id: '${DateTime.now().millisecondsSinceEpoch}_${attachment.id}_$i',
+            text: '', // Без текста для вложений
+            isMe: true,
+            timestamp: DateTime.now().add(Duration(milliseconds: i)), // Чуть разное время
+            attachmentType: attachment.type,
+            attachmentPath: attachment.path,
+          );
+          newMessages.add(attachmentMessage);
+        }
 
-      final updatedMessages = List<Message>.from(currentState.messages)
-        ..addAll(newMessages);
+        final updatedMessages = List<Message>.from(currentState.messages)
+          ..addAll(newMessages);
 
-      // Очищаем pending attachments и обновляем сообщения
-      emit(currentState.copyWith(
-        messages: updatedMessages,
-        pendingAttachments: [],
-      ));
+        // Очищаем pending attachments и обновляем сообщения
+        emit(currentState.copyWith(
+          messages: updatedMessages,
+          pendingAttachments: [],
+          errorMessage: null, // Очищаем предыдущие ошибки
+        ));
 
-      // Симуляция ответа только для текстовых сообщений
-      if (event.text.trim().isNotEmpty) {
-        _simulateResponse(emit);
+        // Симуляция ответа только для текстовых сообщений
+        if (event.text.trim().isNotEmpty) {
+          _simulateResponse(emit);
+        }
+      } catch (e) {
+        emit(currentState.copyWith(
+          errorMessage: 'Ошибка при отправке сообщения: $e',
+        ));
       }
     }
   }
@@ -136,7 +144,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         }
       } catch (e) {
         emit(currentState.copyWith(
-          errorMessage: 'Ошибка при открытии камеры',
+          errorMessage: 'Ошибка при открытии камеры: ${e.toString()}',
         ));
       }
     }
@@ -158,7 +166,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         }
       } catch (e) {
         emit(currentState.copyWith(
-          errorMessage: 'Ошибка при открытии галереи',
+          errorMessage: 'Ошибка при открытии галереи: ${e.toString()}',
         ));
       }
     }
@@ -181,7 +189,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         }
       } catch (e) {
         emit(currentState.copyWith(
-          errorMessage: 'Ошибка при выборе файла',
+          errorMessage: 'Ошибка при выборе файла: ${e.toString()}',
         ));
       }
     }
@@ -257,6 +265,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           errorMessage: 'Ошибка при сохранении файла',
         ));
       }
+    }
+  }
+
+  void _onClearError(ClearError event, Emitter<ChatState> emit) {
+    final currentState = state;
+    if (currentState is ChatLoaded) {
+      emit(currentState.copyWith(errorMessage: null));
     }
   }
 

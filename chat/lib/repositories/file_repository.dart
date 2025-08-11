@@ -1,5 +1,6 @@
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 
 class FileRepository {
   final ImagePicker _imagePicker = ImagePicker();
@@ -13,8 +14,16 @@ class FileRepository {
         imageQuality: 85,
       );
       return image;
-    } catch (e) {
+    } on Exception catch (e) {
+      if (kDebugMode) {
+        debugPrint('Ошибка при открытии камеры: $e');
+      }
       throw Exception('Ошибка при открытии камеры: $e');
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Неожиданная ошибка при открытии камеры: $e');
+      }
+      throw Exception('Неожиданная ошибка при открытии камеры: $e');
     }
   }
 
@@ -27,8 +36,16 @@ class FileRepository {
         imageQuality: 85,
       );
       return image;
-    } catch (e) {
+    } on Exception catch (e) {
+      if (kDebugMode) {
+        debugPrint('Ошибка при открытии галереи: $e');
+      }
       throw Exception('Ошибка при открытии галереи: $e');
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Неожиданная ошибка при открытии галереи: $e');
+      }
+      throw Exception('Неожиданная ошибка при открытии галереи: $e');
     }
   }
 
@@ -43,8 +60,16 @@ class FileRepository {
         return result.files.single;
       }
       return null;
-    } catch (e) {
+    } on Exception catch (e) {
+      if (kDebugMode) {
+        debugPrint('Ошибка при выборе файла: $e');
+      }
       throw Exception('Ошибка при выборе файла: $e');
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Неожиданная ошибка при выборе файла: $e');
+      }
+      throw Exception('Неожиданная ошибка при выборе файла: $e');
     }
   }
 }

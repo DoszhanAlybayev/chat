@@ -58,9 +58,23 @@ class _ChatPageState extends State<ChatPage>
                 SnackBar(
                   content: Text(state.errorMessage!),
                   backgroundColor: Colors.red,
-                  duration: Duration(seconds: 3),
+                  duration: Duration(seconds: 4),
+                  action: SnackBarAction(
+                    label: 'OK',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    },
+                  ),
                 ),
               );
+              
+              // Автоматически очищаем ошибку через небольшую задержку
+              Future.delayed(Duration(milliseconds: 100), () {
+                if (mounted) {
+                  context.read<ChatBloc>().add(ClearError());
+                }
+              });
             }
           }
         },
