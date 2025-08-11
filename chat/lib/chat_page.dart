@@ -256,14 +256,22 @@ class _ChatPageState extends State<ChatPage>
                                   ),
                                 ),
                               SizedBox(width: 8),
-                              Text(
-                                _formatMessageTime(message.timestamp),
-                                style: TextStyle(
-                                  color: message.isMe 
-                                    ? Colors.white.withValues(alpha: 0.7) 
-                                    : Colors.grey[500],
-                                  fontSize: 12,
-                                ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _formatMessageTime(message.timestamp),
+                                    style: TextStyle(
+                                      color: message.isMe 
+                                        ? Colors.white.withValues(alpha: 0.7) 
+                                        : Colors.grey[500],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  // Показываем статус только для своих сообщений
+                                  if (message.isMe)
+                                    _buildMessageStatus(message.status),
+                                ],
                               ),
                             ],
                           ),
@@ -284,6 +292,253 @@ class _ChatPageState extends State<ChatPage>
         ],
       ),
     );
+  }
+
+  Widget _buildMessageStatus(MessageStatus status) {
+    switch (status) {
+      case MessageStatus.sending:
+        return Container(
+          width: 12,
+          height: 12,
+          margin: EdgeInsets.only(left: 4),
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+        );
+      case MessageStatus.sent:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: Icon(
+            Icons.check,
+            size: 14,
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
+        );
+      case MessageStatus.delivered:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: SizedBox(
+            width: 18,
+            height: 14,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+                Positioned(
+                  left: 6,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      case MessageStatus.read:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: SizedBox(
+            width: 18,
+            height: 14,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Color(0xFF00BCD4), // Синий цвет для прочитанных
+                  ),
+                ),
+                Positioned(
+                  left: 6,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Color(0xFF00BCD4), // Синий цвет для прочитанных
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _buildFileMessageStatus(MessageStatus status, bool isMe) {
+    Color iconColor = isMe 
+        ? Colors.white.withValues(alpha: 0.7)
+        : Colors.grey[500]!;
+    Color readColor = Color(0xFF00BCD4);
+
+    switch (status) {
+      case MessageStatus.sending:
+        return Container(
+          width: 12,
+          height: 12,
+          margin: EdgeInsets.only(left: 4),
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+          ),
+        );
+      case MessageStatus.sent:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: Icon(
+            Icons.check,
+            size: 14,
+            color: iconColor,
+          ),
+        );
+      case MessageStatus.delivered:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: SizedBox(
+            width: 18,
+            height: 14,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: iconColor,
+                  ),
+                ),
+                Positioned(
+                  left: 6,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: iconColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      case MessageStatus.read:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: SizedBox(
+            width: 18,
+            height: 14,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: readColor,
+                  ),
+                ),
+                Positioned(
+                  left: 6,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: readColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _buildAttachmentMessageStatus(MessageStatus status) {
+    switch (status) {
+      case MessageStatus.sending:
+        return Container(
+          width: 12,
+          height: 12,
+          margin: EdgeInsets.only(left: 4),
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        );
+      case MessageStatus.sent:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: Icon(
+            Icons.check,
+            size: 14,
+            color: Colors.white,
+          ),
+        );
+      case MessageStatus.delivered:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: SizedBox(
+            width: 18,
+            height: 14,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+                Positioned(
+                  left: 6,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      case MessageStatus.read:
+        return Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: SizedBox(
+            width: 18,
+            height: 14,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Color(0xFF00BCD4), // Синий цвет для прочитанных
+                  ),
+                ),
+                Positioned(
+                  left: 6,
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Color(0xFF00BCD4), // Синий цвет для прочитанных
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    }
   }
 
   Widget _buildInputBar(ChatLoaded state) {
@@ -509,13 +764,21 @@ class _ChatPageState extends State<ChatPage>
                     color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    _formatMessageTime(message.timestamp),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _formatMessageTime(message.timestamp),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      // Показываем статус для своих сообщений
+                      if (message.isMe)
+                        _buildAttachmentMessageStatus(message.status),
+                    ],
                   ),
                 ),
               ),
@@ -604,14 +867,22 @@ class _ChatPageState extends State<ChatPage>
               SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
-                child: Text(
-                  _formatMessageTime(message.timestamp),
-                  style: TextStyle(
-                    color: message.isMe 
-                      ? Colors.white.withValues(alpha: 0.7) 
-                      : Colors.grey[500],
-                    fontSize: 11,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _formatMessageTime(message.timestamp),
+                      style: TextStyle(
+                        color: message.isMe 
+                          ? Colors.white.withValues(alpha: 0.7) 
+                          : Colors.grey[500],
+                        fontSize: 11,
+                      ),
+                    ),
+                    // Показываем статус для своих сообщений
+                    if (message.isMe)
+                      _buildFileMessageStatus(message.status, message.isMe),
+                  ],
                 ),
               ),
             ],

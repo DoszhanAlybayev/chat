@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../models/message.dart';
 
 abstract class ChatEvent extends Equatable {
   const ChatEvent();
@@ -105,4 +106,17 @@ class DownloadFile extends ChatEvent {
 
 class ClearError extends ChatEvent {
   const ClearError();
+}
+
+class UpdateMessageStatus extends ChatEvent {
+  final String messageId;
+  final MessageStatus status;
+
+  const UpdateMessageStatus({
+    required this.messageId,
+    required this.status,
+  });
+
+  @override
+  List<Object?> get props => [messageId, status];
 }

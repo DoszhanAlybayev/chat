@@ -1,5 +1,12 @@
 import 'package:equatable/equatable.dart';
 
+enum MessageStatus {
+  sending,    // отправляется (часы)
+  sent,       // отправлено (одна галочка)
+  delivered,  // доставлено (две галочки)
+  read,       // прочитано (две синие галочки)
+}
+
 class Message extends Equatable {
   final String id;
   final String text;
@@ -7,6 +14,7 @@ class Message extends Equatable {
   final DateTime timestamp;
   final String? attachmentType; // 'image', 'file', etc.
   final String? attachmentPath;
+  final MessageStatus status;
 
   const Message({
     required this.id,
@@ -15,6 +23,7 @@ class Message extends Equatable {
     required this.timestamp,
     this.attachmentType,
     this.attachmentPath,
+    this.status = MessageStatus.sent,
   });
 
   Message copyWith({
@@ -24,6 +33,7 @@ class Message extends Equatable {
     DateTime? timestamp,
     String? attachmentType,
     String? attachmentPath,
+    MessageStatus? status,
   }) {
     return Message(
       id: id ?? this.id,
@@ -32,6 +42,7 @@ class Message extends Equatable {
       timestamp: timestamp ?? this.timestamp,
       attachmentType: attachmentType ?? this.attachmentType,
       attachmentPath: attachmentPath ?? this.attachmentPath,
+      status: status ?? this.status,
     );
   }
 
@@ -43,5 +54,6 @@ class Message extends Equatable {
         timestamp,
         attachmentType,
         attachmentPath,
+        status,
       ];
 }

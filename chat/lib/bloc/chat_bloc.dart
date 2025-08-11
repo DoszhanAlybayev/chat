@@ -24,6 +24,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ViewAttachment>(_onViewAttachment);
     on<DownloadFile>(_onDownloadFile);
     on<ClearError>(_onClearError);
+    on<UpdateMessageStatus>(_onUpdateMessageStatus);
 
     // Инициализируем с тестовыми сообщениями для демонстрации времени и дат
     final now = DateTime.now();
@@ -33,30 +34,35 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         text: 'Привет! Как дела?',
         isMe: false,
         timestamp: now.subtract(Duration(days: 2, hours: 10)),
+        status: MessageStatus.sent, // Для входящих сообщений статус не важен
       ),
       Message(
         id: '2',
         text: 'Привет! Отлично, спасибо!',
         isMe: true,
         timestamp: now.subtract(Duration(days: 2, hours: 9, minutes: 45)),
+        status: MessageStatus.read, // Старое сообщение - прочитано
       ),
       Message(
         id: '3',
         text: 'Что планируешь на выходные?',
         isMe: false,
         timestamp: now.subtract(Duration(days: 1, hours: 14)),
+        status: MessageStatus.sent,
       ),
       Message(
         id: '4',
         text: 'Думаю съездить на дачу 🌲',
         isMe: true,
         timestamp: now.subtract(Duration(days: 1, hours: 13, minutes: 30)),
+        status: MessageStatus.read,
       ),
       Message(
         id: '5',
         text: 'Отличная идея!',
         isMe: false,
         timestamp: now.subtract(Duration(hours: 2)),
+        status: MessageStatus.sent,
       ),
     ];
     
@@ -79,6 +85,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             text: event.text.trim(),
             isMe: true,
             timestamp: DateTime.now(),
+            status: MessageStatus.sending,
           );
           newMessages.add(textMessage);
         }
@@ -93,6 +100,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             timestamp: DateTime.now().add(Duration(milliseconds: i)), // Чуть разное время
             attachmentType: attachment.type,
             attachmentPath: attachment.path,
+            status: MessageStatus.sending,
           );
           newMessages.add(attachmentMessage);
         }
@@ -106,6 +114,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           pendingAttachments: [],
           errorMessage: null, // Очищаем предыдущие ошибки
         ));
+
+        // Запускаем симуляцию изменения статусов для новых сообщений
+        _simulateMessageStatuses(newMessages, emit);
 
         // Симуляция ответа только для текстовых сообщений
         if (event.text.trim().isNotEmpty) {
@@ -264,6 +275,48 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         emit(currentState.copyWith(
           errorMessage: 'Ошибка при сохранении файла',
         ));
+      }
+    }
+  }
+
+  void _onUpdateMessageStatus(UpdateMessageStatus event, Emitter<ChatState> emit) {
+    final currentState = state;
+    if (currentState is ChatLoaded) {
+      final updatedMessages = currentState.messages.map((message) {
+        if (message.id == event.messageId) {
+          return message.copyWith(status: event.status);
+        }
+        return message;
+      }).toList();
+
+      emit(currentState.copyWith(messages: updatedMessages));
+    }
+  }
+
+  void _simulateMessageStatuses(List<Message> newMessages, Emitter<ChatState> emit) {
+    // Симулируем изменение статусов сообщений
+    for (final message in newMessages) {
+      if (message.isMe) {
+        // Через 500мс: отправлено (одна галочка)
+        Future.delayed(Duration(milliseconds: 500), () {
+          if (!isClosed) {
+            add(UpdateMessageStatus(messageId: message.id, status: MessageStatus.sent));
+          }
+        });
+
+        // Через 1.5с: доставлено (две галочки)
+        Future.delayed(Duration(milliseconds: 1500), () {
+          if (!isClosed) {
+            add(UpdateMessageStatus(messageId: message.id, status: MessageStatus.delivered));
+          }
+        });
+
+        // Через 3с: прочитано (две синие галочки)
+        Future.delayed(Duration(milliseconds: 3000), () {
+          if (!isClosed) {
+            add(UpdateMessageStatus(messageId: message.id, status: MessageStatus.read));
+          }
+        });
       }
     }
   }
